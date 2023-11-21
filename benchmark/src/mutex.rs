@@ -57,6 +57,21 @@ impl<T> Mutex<T> for parking_lot::Mutex<T> {
     }
 }
 
+impl<T> Mutex<T> for tokio::sync::Mutex<T> {
+    fn new(v: T) -> Self {
+        Self::new(v)
+    }
+    fn lock<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        f(&mut *self.blocking_lock())
+    }
+    fn name() -> &'static str {
+        "tokio::sync::Mutex"
+    }
+}
+
 #[cfg(not(windows))]
 type SrwLock<T> = std::sync::Mutex<T>;
 
@@ -278,6 +293,14 @@ fn run_all(
             test_iterations,
         );
     }
+
+    run_benchmark_iterations::<tokio::sync::Mutex<f64>>(
+        num_threads,
+        work_per_critical_section,
+        work_between_critical_sections,
+        seconds_per_test,
+        test_iterations,
+    );
 }
 
 fn main() {

@@ -93,6 +93,27 @@ impl<T: Copy> RwLock<T> for seqlock::SeqLock<T> {
     }
 }
 
+impl<T> RwLock<T> for tokio::sync::RwLock<T> {
+    fn new(v: T) -> Self {
+        Self::new(v)
+    }
+    fn read<F, R>(&self, f: F) -> R
+        where
+            F: FnOnce(&T) -> R,
+    {
+        f(&*self.blocking_read())
+    }
+    fn write<F, R>(&self, f: F) -> R
+        where
+            F: FnOnce(&mut T) -> R,
+    {
+        f(&mut *self.blocking_write())
+    }
+    fn name() -> &'static str {
+        "tokio::sync::RwLock"
+    }
+}
+
 #[cfg(not(windows))]
 type SrwLock<T> = std::sync::RwLock<T>;
 
@@ -375,6 +396,14 @@ fn run_all(
             test_iterations,
         );
     }
+    run_benchmark_iterations::<tokio::sync::RwLock<f64>>(
+        num_writer_threads,
+        num_reader_threads,
+        work_per_critical_section,
+        work_between_critical_sections,
+        seconds_per_test,
+        test_iterations,
+    );
 }
 fn main() {
     let args = args::parse(&[
